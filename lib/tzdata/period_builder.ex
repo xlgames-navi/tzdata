@@ -370,15 +370,26 @@ defmodule Tzdata.PeriodBuilder do
   end
 
   def datetime_to_utc({datetime, modifier}, _, _) when modifier == :utc do
-    :calendar.datetime_to_gregorian_seconds(datetime)
+    datetime_to_gregorian_seconds(datetime)
   end
 
   def datetime_to_utc({datetime, modifier}, utc_off, _) when modifier == :standard do
-    :calendar.datetime_to_gregorian_seconds(datetime) - utc_off
+    datetime_to_gregorian_seconds(datetime) - utc_off
   end
 
   def datetime_to_utc({datetime, modifier}, utc_off, std_off) when modifier == :wall do
-    :calendar.datetime_to_gregorian_seconds(datetime) - utc_off - std_off
+    datetime_to_gregorian_seconds(datetime) - utc_off - std_off
+  end
+
+  # IANA rule/until times use "24:00" for end-of-day. OTP 29's :calendar rejects
+  # hour 24 (function_clause), where OTP <= 28 accepted it. Normalize hour >= 24
+  # to next-day midnight plus the hour offset before handing it to :calendar.
+  defp datetime_to_gregorian_seconds({date, {hour, min, sec}}) when hour >= 24 do
+    :calendar.datetime_to_gregorian_seconds({date, {0, min, sec}}) + hour * 3600
+  end
+
+  defp datetime_to_gregorian_seconds(datetime) do
+    :calendar.datetime_to_gregorian_seconds(datetime)
   end
 
   def standard_time_from_utc(:min, _), do: :min
